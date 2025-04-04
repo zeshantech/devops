@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" class="light"></html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Todo List</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        .todo-item {
+            transition: all 0.3s ease;
+        }
+        .todo-item:hover {
+            transform: translateX(5px);
+        }
+        .completed-item {
+            animation: fadeOut 0.5s;
+        }
+        .active-tab {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .settings-panel {
+            display: none;
+        }
+        .dark .bg-gray-100 {
+            background-color: #1a202c;
+        }
+        .dark .text-gray-800 {
+            color: #cbd5e0;
+        }
+        .dark .bg-white {
+            background-color: #2d3748;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <div class="bg-white rounded-lg shadow-xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800 animate__animated animate__fadeIn">
+                    ✨ Smart Todo List
+                </h1>
+                <button id="toggleTheme" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors duration-200">
+                    Toggle Theme
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <div class="flex gap-2">
+                    <input type="text" id="todoInput" 
+                           class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="What needs to be done?">
+                    <button id="addTodo" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors duration-200">
+                        Add Task
+                    </button>
+                </div>
+                <div class="flex gap-4 mt-4">
+                    <select id="priority" class="p-2 border rounded-lg">
+                        <option value="low">Low Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="high">High Priority</option>
+                    </select>
+                    <input type="date" id="dueDate" class="p-2 border rounded-lg">
+                </div>
+            </div>
+
+            <div class="flex gap-4 mb-4">
+                <button id="filterAll" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">All</button>
+                <button id="filterActive" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Active</button>
+                <button id="filterCompleted" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Completed</button>
+            </div>
+
+            <div id="todoList" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+            function saveTodos() {
+                localStorage.setItem('todos', JSON.stringify(todos));
+            }
+
+            function renderTodos(filter = 'all') {
+                $('#todoList').empty();
+                todos.forEach((todo, index) => {
+                    if (filter === 'active' && todo.completed) return;
+                    if (filter === 'completed' && !todo.completed) return;
+
+                    const priorityColors = {
+                        low: 'bg-green-100',
+                        medium: 'bg-yellow-100',
+                        high: 'bg-red-100'
+                    };
+
+                    const todoItem = $(`
+                        <div class="todo-item ${priorityColors[todo.priority]} p-4 rounded-lg flex items-center gap-4 animate__animated animate__fadeIn">
+                            <input type="checkbox" ${todo.completed ? 'checked' : ''} 
+                                   class="w-5 h-5 rounded-full">
+                            <div class="flex-1">
+                                <p class="${todo.completed ? 'line-through text-gray-500' : ''}">${todo.text}</p>
+                                <small class="text-gray-600">Due: ${todo.dueDate || 'No date set'}</small>
+                            </div>
+                            <button class="delete-btn text-red-500 hover:text-red-700">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    `);
+
+                    todoItem.find('input[type="checkbox"]').on('change', function() {
+                        todos[index].completed = !todos[index].completed;
+                        saveTodos();
+                        renderTodos(filter);
+                    });
+
+                    todoItem.find('.delete-btn').on('click', function() {
+                        todos.splice(index, 1);
+                        saveTodos();
+                        todoItem.addClass('animate__animated animate__fadeOutRight').on('animationend', function() {
+                            renderTodos(filter);
+                        });
+                    });
+
+                    $('#todoList').append(todoItem);
+                });
+            }
+
+            $('#addTodo').click(function() {
+                const text = $('#todoInput').val().trim();
+                if (!text) return;
+
+                todos.push({
+                    text,
+                    completed: false,
+                    priority: $('#priority').val(),
+                    dueDate: $('#dueDate').val(),
+                    createdAt: new Date().toISOString()
+                });
+
+                saveTodos();
+                $('#todoInput').val('');
+                renderTodos();
+            });
+
+            $('#todoInput').keypress(function(e) {
+                if (e.which === 13) $('#addTodo').click();
+            });
+
+            $('#filterAll').click(() => renderTodos('all'));
+            $('#filterActive').click(() => renderTodos('active'));
+            $('#filterCompleted').click(() => renderTodos('completed'));
+
+            $('#toggleTheme').click(function() {
+                $('html').toggleClass('dark');
+            });
+
+            renderTodos();
+        });
+    </script>
+</body>
+</html>
